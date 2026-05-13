@@ -1,0 +1,34 @@
+import os
+from dotenv import load_dotenv
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain.chains import RetrievalQA
+
+load_dotenv()
+
+# Load PDF
+loader = PyPDFLoader("document.pdf")
+documents = loader.load()
+
+# Split into chunks
+splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+chunks = splitter.split_documents(documents)
+
+# Create embeddings and store in FAISS
+embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+vectorstore = FAISS.from_documents(chunks, embeddings)
+
+# Create RAG chain
+llm = ChatGoogleGenerativeAI(model="gemini-pro")
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=vectorstore.as_retriever()
+)
+
+# Ask a question
+question = "What is this document about?"
+answer = qa_chain.run(question)
+print("Answer:", answer)
